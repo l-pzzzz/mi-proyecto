@@ -1,10 +1,10 @@
-# Reglas propias de Semgrep.
+﻿# Reglas propias de Semgrep.
 #
-# Los escáneres genéricos detectan patrones conocidos de la industria. Estas reglas
-# detectan los errores que comete el código generado en ESTE repositorio.
+# Los escÃ¡neres genÃ©ricos detectan patrones conocidos de la industria. Estas reglas
+# detectan los errores que comete el cÃ³digo generado en ESTE repositorio.
 #
-# Regla de oro: cada vez que un bug llegue al PR y lo atrapes en revisión, escribe
-# una regla aquí. Es la única forma de que la revisión humana no tenga que repetirse.
+# Regla de oro: cada vez que un bug llegue al PR y lo atrapes en revisiÃ³n, escribe
+# una regla aquÃ­. Es la Ãºnica forma de que la revisiÃ³n humana no tenga que repetirse.
 
 rules:
   - id: api-sin-verificacion-de-sesion
@@ -12,8 +12,8 @@ rules:
     severity: ERROR
     message: >-
       Este handler de API no llama a requireUser(). Todo endpoint bajo app/api/ debe
-      verificar la sesión antes de hacer cualquier otra cosa. Si el endpoint es
-      deliberadamente público, agregá el comentario // publico-a-proposito con la razón.
+      verificar la sesiÃ³n antes de hacer cualquier otra cosa. Si el endpoint es
+      deliberadamente pÃºblico, agregÃ¡ el comentario // publico-a-proposito con la razÃ³n.
     paths:
       include:
         - "app/api/**"
@@ -34,9 +34,9 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      Estás devolviendo el objeto de error o su mensaje al cliente. Eso filtra
-      estructura de la base de datos y rutas del servidor. Devolvé un mensaje genérico
-      y mandá el detalle al logger.
+      EstÃ¡s devolviendo el objeto de error o su mensaje al cliente. Eso filtra
+      estructura de la base de datos y rutas del servidor. DevolvÃ© un mensaje genÃ©rico
+      y mandÃ¡ el detalle al logger.
     patterns:
       - pattern-either:
           - pattern: 'NextResponse.json({ ..., error: $E.message, ... }, ...)'
@@ -50,7 +50,7 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      CORS con comodín. Listá los orígenes permitidos explícitamente.
+      CORS con comodÃ­n. ListÃ¡ los orÃ­genes permitidos explÃ­citamente.
     pattern-either:
       - pattern: '{..., "Access-Control-Allow-Origin": "*", ...}'
       - pattern: 'cors({ ..., origin: "*", ... })'
@@ -60,7 +60,7 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      Estás escribiendo una credencial al log. Los logs se guardan, se rotan y a
+      EstÃ¡s escribiendo una credencial al log. Los logs se guardan, se rotan y a
       veces se comparten.
     patterns:
       - pattern-either:
@@ -74,14 +74,14 @@ rules:
     languages: [typescript]
     severity: WARNING
     message: >-
-      Consulta de lectura sin cláusula where. Si este recurso pertenece a un usuario,
-      esto devuelve los registros de todos. Confirmá que es intencional.
+      Consulta de lectura sin clÃ¡usula where. Si este recurso pertenece a un usuario,
+      esto devuelve los registros de todos. ConfirmÃ¡ que es intencional.
     pattern-either:
       - pattern: $DB.$TABLA.findMany()
       - pattern: $DB.$TABLA.findMany({})
 
   - id: html-sin-sanitizar
-    languages: [typescript, tsx]
+    languages: [typescript]
     severity: ERROR
     message: >-
       dangerouslySetInnerHTML con contenido que no es una constante literal. Esto es
@@ -95,7 +95,8 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      SQL armado con template string. Usá consultas parametrizadas.
+      SQL armado con template string. UsÃ¡ consultas parametrizadas.
     pattern-either:
       - pattern: $DB.$RAW(`... ${$X} ...`)
       - pattern: $DB.query(`... ${$X} ...`)
+

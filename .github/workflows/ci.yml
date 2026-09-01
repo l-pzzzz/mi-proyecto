@@ -1,7 +1,7 @@
-name: CI
+﻿name: CI
 
-# Este es el juez objetivo del agente. Si esto tarda más de 5 minutos,
-# el bucle deja de funcionar: arréglalo antes que cualquier otra cosa.
+# Este es el juez objetivo del agente. Si esto tarda mas de 5 minutos,
+# el bucle deja de funcionar: arreglalo antes que cualquier otra cosa.
 
 on:
   pull_request:
@@ -36,11 +36,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tests unitarios y de integración
+      - name: Tests unitarios y de integracion
         run: npm test -- --run
 
-      - name: Tests de autorización
-        # Se corren aparte para que quede evidente en el log cuando fallan.
+      - name: Tests de autorizacion
         run: npm test -- --run tests/autorizacion
 
       - name: Build
@@ -71,10 +70,13 @@ jobs:
     name: Secretos, SAST y dependencias
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # gitleaks necesita el historial completo
+          fetch-depth: 0
 
       - name: Secretos filtrados
         uses: gitleaks/gitleaks-action@v2
@@ -90,7 +92,7 @@ jobs:
       - name: Dependencias con vulnerabilidad conocida
         run: npm audit --audit-level=high
 
-      - name: Verificar que el lockfile no cambió sin querer
+      - name: Verificar que el lockfile no cambio sin querer
         run: git diff --exit-code package-lock.json
 
   sast:
@@ -101,7 +103,7 @@ jobs:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - name: Reglas públicas + reglas propias
+      - name: Reglas publicas + reglas propias
         run: |
           semgrep scan \
             --config=p/typescript \
