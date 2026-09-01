@@ -1,23 +1,22 @@
-﻿import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "coverage/**",
-    "playwright-report/**",
-    "docs/**",
-    "next-env.d.ts",
-  ]),
+const compat = new FlatCompat({
+  baseDirectory: dirname(fileURLToPath(import.meta.url)),
+});
+
+export default [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [".next/**", "node_modules/**", "coverage/**", "playwright-report/**"],
+  },
   {
     rules: {
+      // Reglas que atrapan errores, no estilo. El estilo lo arregla Prettier.
       "no-console": ["error", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-floating-promises": "off", // requiere type-aware linting
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
@@ -26,6 +25,7 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         {
+          // Atrapa el fallo numero 4 de la guia de seguridad.
           selector:
             "MemberExpression[object.object.name='process'][object.property.name='env'] > Identifier[name=/^NEXT_PUBLIC_.*(SECRET|SERVICE|PRIVATE|TOKEN|PASSWORD)/]",
           message:
@@ -34,6 +34,4 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-]);
-
-export default eslintConfig;
+];

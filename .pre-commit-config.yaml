@@ -1,0 +1,32 @@
+# Instalación:
+#   pipx install pre-commit   (o: pip install pre-commit)
+#   pre-commit install
+#
+# Esto corre antes de cada commit, en tu máquina. Es la última barrera antes de que
+# un secreto quede en el historial de git — donde borrarlo después es un dolor.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=2000"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+
+  - repo: local
+    hooks:
+      - id: sin-env
+        name: bloquear archivos .env
+        entry: bash -c 'git diff --cached --name-only | grep -E "^\.env" && echo "No se commitean archivos .env" && exit 1 || exit 0'
+        language: system
+        pass_filenames: false

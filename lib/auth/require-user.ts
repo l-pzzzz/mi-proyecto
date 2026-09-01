@@ -1,0 +1,130 @@
+/**
+ * requireUser() — la primera línea de todo handler bajo app/api/.
+ *
+ * Por qué existe como archivo propio y no copiado en cada endpoint:
+ *
+ * 1. Un solo lugar donde se decide qué es una sesión válida. Si mañana cambiás de
+ *    proveedor de auth, tocás un archivo.
+ * 2. La regla de Semgrep `api-sin-verificacion-de-sesion` busca literalmente esta
+ *    llamada. Si cada endpoint improvisa su propia comprobación, la compuerta
+ *    automática deja de servir.
+ * 3. Lanza en vez de devolver null: si alguien olvida comprobar el resultado, el
+ *    pedido falla cerrado (403) en vez de continuar con un usuario indefinido.
+ *
+ * Adaptalo a tu proveedor de auth. Lo que NO se cambia es la firma ni el nombre.
+ */
+
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
+export type UsuarioAutenticado = {
+  id: string;
+  email: string;
+  rol: string;
+  /** En sistemas multi-inquilino, el filtro obligatorio de toda consulta. */
+  organizacionId: string | null;
+};
+
+/** Error que el manejador de la ruta convierte en respuesta HTTP. */
+export class ErrorAutenticacion extends Error {
+  constructor(readonly estado: 401 | 403, mensaje: string) {
+    super(mensaje);
+    this.name = "ErrorAutenticacion";
+  }
+}
+
+async function clienteServidor() {
+  const almacen = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => almacen.getAll(),
+        setAll: (lista) => {
+          try {
+            lista.forEach(({ name, value, options }) =>
+              almacen.set(name, value, options),
+            );
+          } catch {
+            // Los Server Components no pueden escribir cookies. El middleware
+            // se encarga de refrescar la sesión.
+          }
+        },
+      },
+    },
+  );
+}
+
+/**
+ * Devuelve el usuario de la sesión actual o lanza.
+ * Nunca devuelve null: el camino de fallo es una excepción, no un valor.
+ */
+export async function requireUser(): Promise<UsuarioAutenticado> {
+  const supabase = await clienteServidor();
+
+  // getUser() valida el token contra el servidor de auth.
+  // NO usar getSession() acá: lee la cookie sin verificarla.
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    throw new ErrorAutenticacion(401, "Sesión ausente o inválida");
+  }
+
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("rol, organizacion_id")
+    .eq("id", data.user.id)
+    .single();
+
+  return {
+    id: data.user.id,
+    email: data.user.email ?? "",
+    rol: perfil?.rol ?? "usuario",
+    organizacionId: perfil?.organizacion_id ?? null,
+  };
+}
+
+/** Igual que requireUser pero además exige un rol. */
+export async function requireRol(
+  ...rolesPermitidos: string[]
+): Promise<UsuarioAutenticado> {
+  const usuario = await requireUser();
+  if (!rolesPermitidos.includes(usuario.rol)) {
+    throw new ErrorAutenticacion(403, "Rol insuficiente");
+  }
+  return usuario;
+}
+
+/**
+ * Envoltorio para handlers de ruta. Convierte las excepciones en respuestas y
+ * garantiza que el detalle del error nunca llega al cliente.
+ *
+ *   export const GET = manejar(async (req) => {
+ *     const usuario = await requireUser();
+ *     ...
+ *   });
+ */
+export function manejar(
+  fn: (req: Request) => Promise<Response>,
+): (req: Request) => Promise<Response> {
+  return async (req) => {
+    try {
+      return await fn(req);
+    } catch (e) {
+      if (e instanceof ErrorAutenticacion) {
+        return NextResponse.json({ error: e.message }, { status: e.estado });
+      }
+      // El detalle va al log del servidor, nunca al cliente.
+      console.error("Error no manejado", {
+        ruta: new URL(req.url).pathname,
+        error: e,
+      });
+      return NextResponse.json(
+        { error: "Error interno" },
+        { status: 500 },
+      );
+    }
+  };
+}

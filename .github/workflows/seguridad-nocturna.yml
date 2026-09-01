@@ -1,0 +1,81 @@
+name: Seguridad nocturna
+
+# Lo que es demasiado lento para correr en cada PR.
+# Corre de madrugada y también a mano cuando lo necesites.
+#
+# Verificá las versiones de las actions antes de usar: cambian seguido.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 02:00 en Bolivia (UTC-4)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # para que ZAP pueda abrir el issue con los hallazgos
+
+jobs:
+  dast:
+    name: OWASP ZAP contra el preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Escaneo baseline
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          # Apuntá esto a tu entorno de staging o preview.
+          # NUNCA a producción con datos reales.
+          target: ${{ secrets.URL_STAGING }}
+          rules_file_name: seguridad/zap-reglas.tsv # opcional: silenciar falsos positivos
+          cmd_options: "-a"
+          fail_action: false # informa sin romper; ponelo en true cuando el ruido baje
+
+  dependencias:
+    name: Dependencias y configuración
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy sobre el repositorio
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Auditoría completa
+        run: npm audit --audit-level=moderate
+        continue-on-error: true # informativo; el bloqueante es el de ci.yml en HIGH
+
+  semgrep-completo:
+    name: Semgrep con reglas extendidas
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          semgrep scan \
+            --config=p/default \
+            --config=p/nextjs \
+            --config=p/react \
+            --config=p/sql-injection \
+            --config=p/jwt \
+            --config=seguridad/reglas-propias.yml \
+            --sarif --output=semgrep.sarif || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 14
