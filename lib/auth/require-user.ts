@@ -114,7 +114,9 @@ export function manejar(
       return await fn(req);
     } catch (e) {
       if (e instanceof ErrorAutenticacion) {
-        return NextResponse.json({ error: e.message }, { status: e.estado });
+        // Seguro: e.message aca es siempre uno de los strings fijos que definimos
+        // arriba (nunca un error crudo del sistema o de la base de datos).
+        return NextResponse.json({ error: e.message }, { status: e.estado }); // nosemgrep: seguridad.error-crudo-al-cliente
       }
       // El detalle va al log del servidor, nunca al cliente.
       console.error("Error no manejado", {
