@@ -1,10 +1,10 @@
 ﻿# Reglas propias de Semgrep.
 #
-# Los escÃ¡neres genÃ©ricos detectan patrones conocidos de la industria. Estas reglas
-# detectan los errores que comete el cÃ³digo generado en ESTE repositorio.
+# Los escaneres genericos detectan patrones conocidos de la industria. Estas reglas
+# detectan los errores que comete el codigo generado en ESTE repositorio.
 #
-# Regla de oro: cada vez que un bug llegue al PR y lo atrapes en revisiÃ³n, escribe
-# una regla aquÃ­. Es la Ãºnica forma de que la revisiÃ³n humana no tenga que repetirse.
+# Regla de oro: cada vez que un bug llegue al PR y lo atrapes en revision, escribe
+# una regla aqui. Es la unica forma de que la revision humana no tenga que repetirse.
 
 rules:
   - id: api-sin-verificacion-de-sesion
@@ -12,8 +12,8 @@ rules:
     severity: ERROR
     message: >-
       Este handler de API no llama a requireUser(). Todo endpoint bajo app/api/ debe
-      verificar la sesiÃ³n antes de hacer cualquier otra cosa. Si el endpoint es
-      deliberadamente pÃºblico, agregÃ¡ el comentario // publico-a-proposito con la razÃ³n.
+      verificar la sesion antes de hacer cualquier otra cosa. Si el endpoint es
+      deliberadamente publico, agrega el comentario // publico-a-proposito con la razon.
     paths:
       include:
         - "app/api/**"
@@ -25,7 +25,7 @@ rules:
           metavariable: $METODO
           regex: ^(GET|POST|PUT|PATCH|DELETE)$
       - pattern-not: |
-          export async function $METODO(...) { ... requireUser(...) ... }
+          export async function $METODO(...) { ... requireUser(...); ... }
       - pattern-not-inside: |
           // publico-a-proposito
           ...
@@ -34,9 +34,9 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      EstÃ¡s devolviendo el objeto de error o su mensaje al cliente. Eso filtra
-      estructura de la base de datos y rutas del servidor. DevolvÃ© un mensaje genÃ©rico
-      y mandÃ¡ el detalle al logger.
+      Estas devolviendo el objeto de error o su mensaje al cliente. Eso filtra
+      estructura de la base de datos y rutas del servidor. Devolve un mensaje generico
+      y manda el detalle al logger.
     patterns:
       - pattern-either:
           - pattern: 'NextResponse.json({ ..., error: $E.message, ... }, ...)'
@@ -50,7 +50,7 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      CORS con comodÃ­n. ListÃ¡ los orÃ­genes permitidos explÃ­citamente.
+      CORS con comodin. Lista los origenes permitidos explicitamente.
     pattern-either:
       - pattern: '{..., "Access-Control-Allow-Origin": "*", ...}'
       - pattern: 'cors({ ..., origin: "*", ... })'
@@ -60,7 +60,7 @@ rules:
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      EstÃ¡s escribiendo una credencial al log. Los logs se guardan, se rotan y a
+      Estas escribiendo una credencial al log. Los logs se guardan, se rotan y a
       veces se comparten.
     patterns:
       - pattern-either:
@@ -74,8 +74,8 @@ rules:
     languages: [typescript]
     severity: WARNING
     message: >-
-      Consulta de lectura sin clÃ¡usula where. Si este recurso pertenece a un usuario,
-      esto devuelve los registros de todos. ConfirmÃ¡ que es intencional.
+      Consulta de lectura sin clausula where. Si este recurso pertenece a un usuario,
+      esto devuelve los registros de todos. Confirma que es intencional.
     pattern-either:
       - pattern: $DB.$TABLA.findMany()
       - pattern: $DB.$TABLA.findMany({})
@@ -84,19 +84,17 @@ rules:
     languages: [typescript]
     severity: ERROR
     message: >-
-      dangerouslySetInnerHTML con contenido que no es una constante literal. Esto es
-      XSS si el contenido viene del usuario o de la base.
+      Uso de dangerouslySetInnerHTML. Confirma que el contenido esta sanitizado o es
+      una constante propia del codigo — nunca texto que viene del usuario o de la
+      base sin pasar por un sanitizador.
     patterns:
-      - pattern: 'dangerouslySetInnerHTML={{ __html: $X }}'
-      - pattern-not: 'dangerouslySetInnerHTML={{ __html: "..." }}'
-      - pattern-not: 'dangerouslySetInnerHTML={{ __html: sanitizar(...) }}'
+      - pattern: <$TAG dangerouslySetInnerHTML={...} />
 
   - id: sql-concatenado
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      SQL armado con template string. UsÃ¡ consultas parametrizadas.
+      SQL armado con template string. Usa consultas parametrizadas.
     pattern-either:
       - pattern: $DB.$RAW(`... ${$X} ...`)
       - pattern: $DB.query(`... ${$X} ...`)
-

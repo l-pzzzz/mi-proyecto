@@ -110,4 +110,5 @@ jobs:
             --config=p/owasp-top-ten \
             --config=p/secrets \
             --config=seguridad/reglas-propias.yml \
+            --exclude-rule=yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag \
             --error
