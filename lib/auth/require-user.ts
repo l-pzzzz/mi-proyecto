@@ -1,4 +1,4 @@
-/**
+﻿/**
  * requireUser() — la primera línea de todo handler bajo app/api/.
  *
  * Por qué existe como archivo propio y no copiado en cada endpoint:
@@ -14,9 +14,8 @@
  * Adaptalo a tu proveedor de auth. Lo que NO se cambia es la firma ni el nombre.
  */
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { clienteServidor, tokenBearer } from "@/lib/db/cliente";
 
 export type UsuarioAutenticado = {
   id: string;
@@ -34,40 +33,21 @@ export class ErrorAutenticacion extends Error {
   }
 }
 
-async function clienteServidor() {
-  const almacen = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => almacen.getAll(),
-        setAll: (lista) => {
-          try {
-            lista.forEach(({ name, value, options }) =>
-              almacen.set(name, value, options),
-            );
-          } catch {
-            // Los Server Components no pueden escribir cookies. El middleware
-            // se encarga de refrescar la sesión.
-          }
-        },
-      },
-    },
-  );
-}
-
 /**
  * Devuelve el usuario de la sesión actual o lanza.
  * Nunca devuelve null: el camino de fallo es una excepción, no un valor.
  */
 export async function requireUser(): Promise<UsuarioAutenticado> {
   const supabase = await clienteServidor();
+  const token = await tokenBearer();
 
   // getUser() valida el token contra el servidor de auth.
   // NO usar getSession() acá: lee la cookie sin verificarla.
-  const { data, error } = await supabase.auth.getUser();
-
+  // Con Bearer token explícito (scripts, tests, apps) se valida ese; si no,
+  // se usa la sesión de la cookie del navegador.
+  const { data, error } = token
+    ? await supabase.auth.getUser(token)
+    : await supabase.auth.getUser();
   if (error || !data.user) {
     throw new ErrorAutenticacion(401, "Sesión ausente o inválida");
   }

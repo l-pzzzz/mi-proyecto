@@ -1,7 +1,7 @@
 ﻿name: CI
 
-# Este es el juez objetivo del agente. Si esto tarda mas de 5 minutos,
-# el bucle deja de funcionar: arreglalo antes que cualquier otra cosa.
+# Este es el juez objetivo del agente. Si esto tarda más de 5 minutos,
+# el bucle deja de funcionar: arréglalo antes que cualquier otra cosa.
 
 on:
   pull_request:
@@ -20,6 +20,10 @@ jobs:
     name: Tipos, lint, tests y build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,20 +40,32 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tests unitarios y de integracion
-        run: npm test -- --run
-
-      - name: Tests de autorizacion
-        run: npm test -- --run tests/autorizacion
-
       - name: Build
         run: npm run build
+
+      - name: Iniciar servidor
+        # Los tests de integracion y autorizacion pegan contra un servidor real
+        # via HTTP, no mocks. wait-on espera a que responda antes de seguir.
+        run: |
+          npm run start &
+          npx --yes wait-on http://localhost:3000 --timeout 30000
+
+      - name: Tests unitarios y de integración
+        run: npm test -- --run
+
+      - name: Tests de autorización
+        # Se corren aparte para que quede evidente en el log cuando fallan.
+        run: npm test -- --run tests/autorizacion
 
   e2e:
     name: Navegador (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: calidad
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,11 +88,11 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: read # gitleaks lee los commits del PR; sin esto da 403
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # gitleaks necesita el historial completo
 
       - name: Secretos filtrados
         uses: gitleaks/gitleaks-action@v2
@@ -92,7 +108,7 @@ jobs:
       - name: Dependencias con vulnerabilidad conocida
         run: npm audit --audit-level=high
 
-      - name: Verificar que el lockfile no cambio sin querer
+      - name: Verificar que el lockfile no cambió sin querer
         run: git diff --exit-code package-lock.json
 
   sast:
@@ -103,7 +119,7 @@ jobs:
       image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - name: Reglas publicas + reglas propias
+      - name: Reglas públicas + reglas propias
         run: |
           semgrep scan \
             --config=p/typescript \
