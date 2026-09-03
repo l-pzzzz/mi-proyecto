@@ -1,5 +1,14 @@
 import { defineConfig } from "vitest/config";
+import { loadEnv } from "vite";
 import { fileURLToPath } from "node:url";
+
+// Vitest corre como un proceso de Node aparte de Next, asi que no hereda la
+// carga automatica de .env.local que hace `next dev`. loadEnv() replica esa
+// misma convencion de archivos (.env, .env.local, etc.) para que los tests
+// tengan las mismas variables que la app real. El "" como tercer argumento le
+// dice que cargue TODAS las variables, no solo las prefijadas VITE_.
+const env = loadEnv("", process.cwd(), "");
+Object.assign(process.env, env);
 
 export default defineConfig({
   test: {
